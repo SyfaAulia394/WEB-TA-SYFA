@@ -67,7 +67,7 @@ Route::post('/kirim-ulasan/{slug}', function (Request $request, $slug) {
         if (stripos($komentar, $kata) !== false) {
             
             $token = env('TELEGRAM_BOT_TOKEN');
-            $chatId = session()->get('user_chat_id'); 
+            $chatId = env('TELEGRAM_CHAT_ID');
 
             if ($token && $chatId) {
                 $pesanAlert = "⚠️ [AWS WAF ACTION - BLOCK DETECTED]\n";
