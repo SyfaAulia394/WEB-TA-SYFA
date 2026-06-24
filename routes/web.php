@@ -57,19 +57,26 @@ Route::get('/produk/{slug}', function ($slug) {
 });
 
 // Memproses Ulasan Baru & Menyimpannya ke Database Secara Permanen jika Lolos WAF
-Route::post('/kirim-ulasan/{slug}', function (Request $request, $slug) {
+Route::post('/kirim-ulasan/{slug}', function (\Illuminate\Http\Request $request, $slug) {
     $nama = $request->input('nama_reviewer');
     $komentar = $request->input('isi_ulasan');
 
     // // INSPEKSI DETEKSI AWS WAF (Layer 7 Content Spamming)
     $kataKunciTerlarang = ['judi', 'slot', 'gacor', 'pinjol', 'dana gaib'];
+
     foreach ($kataKunciTerlarang as $kata) {
         if (stripos($komentar, $kata) !== false) {
             
+            // Ambil dari env, jika kosong atau tidak terbaca, gunakan default back-up
             $token = env('TELEGRAM_BOT_TOKEN');
-            $chatId = env('TELEGRAM_CHAT_ID');
+            if (!$token) {
+                $token = '8670847827:AAHegRhtNE3DxEVY-DrEQ6MrJNNze-ZvFig';
+            }
 
-            if ($token && $chatId) {
+            $chatId = env('TELEGRAM_CHAT_ID');
+            if (!$chatId) {
+                $chatId = '5571933193';
+            }
                 $pesanAlert = "⚠️ [AWS WAF ACTION - BLOCK DETECTED]\n";
                 $pesanAlert .= "--------------------------------------\n";
                 $pesanAlert .= "Status: REQUEST BLOCKED (403 Forbidden)\n";
@@ -77,12 +84,11 @@ Route::post('/kirim-ulasan/{slug}', function (Request $request, $slug) {
                 $pesanAlert .= "Payload: \"" . $komentar . "\"\n";
                 $pesanAlert .= "Action: Traffic Dropped by WAF Web ACL\n";
 
-                Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
-                    'chat_id' => $chatId,
-                    'text' => $pesanAlert
+                \Illuminate\Support\Facades\Http::asForm()->post("https://api.telegram.org/bot{$token}/sendMessage", [
+                'chat_id' => $chatId,
+                'text'    => $pesanAlert,
                 ]);
-            }
-
+           
             // AWS WAF memotong akses (TIDAK AKAN MASUK KE DATABASE)
             return response()->json([
                 'status' => 403,
